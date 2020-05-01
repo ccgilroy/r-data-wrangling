@@ -1,0 +1,617 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+  <head>
+    <title>Data Wrangling in R</title>
+    <meta charset="utf-8" />
+    <meta name="author" content="Connor Gilroy" />
+    <meta name="date" content="2020-05-01" />
+    <script src="libs/jquery-1.11.3/jquery.min.js"></script>
+    <script src="libs/elevate-section-attrs-2.0/elevate-section-attrs.js"></script>
+    <link href="libs/remark-css-0.0.1/default.css" rel="stylesheet" />
+    <link href="libs/remark-css-0.0.1/metropolis.css" rel="stylesheet" />
+    <link href="libs/remark-css-0.0.1/metropolis-fonts.css" rel="stylesheet" />
+    <script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
+    <link rel="stylesheet" href="css/presentation-styles.css" type="text/css" />
+  </head>
+  <body>
+    <textarea id="source">
+class: center, middle, inverse, title-slide
+
+# Data Wrangling in R
+##  
+### Connor Gilroy
+### 2020-05-01
+
+---
+
+
+
+
+
+
+# Data wrangling
+
+What do we mean by *data wrangling*? (Or "data munging", or even ["data janitoring"](https://www.nytimes.com/2014/08/18/technology/for-big-data-scientists-hurdle-to-insights-is-janitor-work.html)?)
+
+&lt;blockquote class="twitter-tweet tw-align-center"&gt;&lt;p lang="en" dir="ltr"&gt;Them: Can you just quickly pull this data for me?&lt;br&gt;&lt;br&gt;Me: Sure, let me just: &lt;br&gt;&lt;br&gt;SELECT * FROM some_ideal_clean_and_pristine.table_that_you_think_exists&lt;/p&gt;&amp;mdash; Seth Rosen (@sethrosen) &lt;a href="https://twitter.com/sethrosen/status/1252291581320757249?ref_src=twsrc%5Etfw"&gt;April 20, 2020&lt;/a&gt;&lt;/blockquote&gt;
+
+--
+
+Data wrangling is **everything you have to do to a data set to get it ready for analysis**
+
+&lt;center&gt;&lt;img width="40%" src="https://d33wubrfki0l68.cloudfront.net/795c039ba2520455d833b4034befc8cf360a70ba/558a5/diagrams/data-science-explore.png"&gt;&lt;/center&gt;
+
+---
+
+# How to wrangle data in R 
+
+There's more than one way to do it! R has two main **dialects**: 
+
+--
+
+#### #1. **base** R
+
+
+```r
+head(data.frame(giving)[(giving$`2016_dollars`&lt;0 &amp; !is.na(giving$`2016_dollars`)), 
+                        c("transaction_amt","memo_text")], 100)
+```
+
+--
+
+#### #2. the **tidyverse**
+
+
+```r
+giving %&gt;% 
+  filter(`2016_dollars` &lt; 0, !is.na(`2016_dollars`)) %&gt;% 
+  select(transaction_amt, memo_text) %&gt;%
+  head(100)
+```
+
+Many people mix the two. I'll teach a more pure tidyverse style.
+
+**Note:** the tidyverse evolves over time. Use current packages that are well-established. Steer clear of retired packages (like **plyr**) or ones that are especially new (unless you need something cutting-edge)
+
+---
+
+# Key concepts 
+
+tidyverse-style data transformation has 3 components
+
+1. data (a data frame object)
+2. verbs (functions)
+3. the pipe (`%&gt;%`) 
+
+--
+
+
+```r
+# this
+some_data %&gt;%
+  do_something()
+
+# is the same as this
+do_something(some_data)
+```
+
+--
+
+Why bother with the pipe? You can combine steps into a *series* of transformations
+
+Remember, if you want to keep something, you also have to give it a name:
+
+
+```r
+some_new_data &lt;- 
+  some_data %&gt;%
+  do_something() %&gt;%
+  do_something_else()
+```
+
+---
+
+# Simple **dplyr** verbs
+
+#### `select()` - choose columns (variables) by name
+
+
+```r
+gss %&gt;% select(id, sex, race)
+
+# remove columns with -name
+gss %&gt;% select(-year)
+
+# there are select helpers too
+gss %&gt;% select(starts_with("vote"))
+```
+
+--
+
+#### `filter()` - choose rows (observations) by some characteristics
+
+
+```r
+gss %&gt;% filter(age &lt; 50)
+
+# "a equals b" is `a == b`
+gss %&gt;% filter(race == "BLACK")
+
+# `!` means "not"
+gss %&gt;% filter(!is.na(divorce))
+```
+
+--
+
+#### `arrange()` - put data in order by one or more variables
+
+
+```r
+gss %&gt;% arrange(age, race)
+```
+
+---
+
+# Simple **dplyr** verbs
+
+#### `select()` - choose columns (variables) by name
+
+
+```r
+gss %&gt;% select(id, sex, race)
+```
+
+```
+## # A tibble: 4,761 x 3
+##    id    sex    race 
+##    &lt;fct&gt; &lt;fct&gt;  &lt;fct&gt;
+##  1 9     FEMALE BLACK
+##  2 3001  FEMALE OTHER
+##  3 6001  FEMALE BLACK
+##  4 10    FEMALE OTHER
+##  5 3002  FEMALE OTHER
+##  6 6002  FEMALE WHITE
+##  7 11    FEMALE BLACK
+##  8 3003  FEMALE BLACK
+##  9 6003  FEMALE BLACK
+## 10 12    MALE   BLACK
+## # … with 4,751 more rows
+```
+
+---
+
+# Simple **dplyr** verbs
+
+#### `filter()` - choose rows (observations) by some characteristics
+
+
+```r
+gss %&gt;% filter(race == "BLACK")
+```
+
+```
+## # A tibble: 665 x 15
+##    firstid  wave year  id      age sex   race  divorce income income06 rincome vote00 vote04
+##    &lt;fct&gt;   &lt;dbl&gt; &lt;fct&gt; &lt;fct&gt; &lt;dbl&gt; &lt;fct&gt; &lt;fct&gt; &lt;fct&gt;   &lt;fct&gt;  &lt;fct&gt;    &lt;fct&gt;   &lt;fct&gt;  &lt;fct&gt; 
+##  1 9           1 2006  9        23 FEMA… BLACK &lt;NA&gt;    $2500… $40000 … $25000… INELI… VOTED 
+##  2 9           3 2010  6001     27 FEMA… BLACK NO      $2500… $60000 … $25000… IAP    VOTED 
+##  3 11          1 2006  11       81 FEMA… BLACK YES     &lt;NA&gt;   &lt;NA&gt;     &lt;NA&gt;    VOTED  VOTED 
+##  4 11          2 2008  3003     83 FEMA… BLACK YES     $2000… $20000 … &lt;NA&gt;    IAP    VOTED 
+##  5 11          3 2010  6003     85 FEMA… BLACK NO      &lt;NA&gt;   &lt;NA&gt;     &lt;NA&gt;    IAP    DID N…
+##  6 12          1 2006  12       47 MALE  BLACK &lt;NA&gt;    &lt;NA&gt;   &lt;NA&gt;     &lt;NA&gt;    DID N… DID N…
+##  7 12          2 2008  3004     49 MALE  BLACK &lt;NA&gt;    $1000… $12500 … &lt;NA&gt;    IAP    DID N…
+##  8 13          1 2006  13       26 MALE  BLACK &lt;NA&gt;    $8000… $8 000 … &lt;NA&gt;    VOTED  VOTED 
+##  9 13          2 2008  3005     28 MALE  BLACK &lt;NA&gt;    $1000… $12500 … $10000… IAP    VOTED 
+## 10 13          3 2010  6005     30 MALE  BLACK &lt;NA&gt;    $2500… $30000 … $25000… IAP    VOTED 
+## # … with 655 more rows, and 2 more variables: vote08 &lt;dbl&gt;, earthsun &lt;fct&gt;
+```
+
+---
+
+# Simple **dplyr** verbs
+
+#### `arrange()` - put data in order by one or more variables
+
+
+```r
+gss %&gt;% arrange(desc(age))
+```
+
+```
+## # A tibble: 4,761 x 15
+##    firstid  wave year  id      age sex   race  divorce income income06 rincome vote00 vote04
+##    &lt;fct&gt;   &lt;dbl&gt; &lt;fct&gt; &lt;fct&gt; &lt;dbl&gt; &lt;fct&gt; &lt;fct&gt; &lt;fct&gt;   &lt;fct&gt;  &lt;fct&gt;    &lt;fct&gt;   &lt;fct&gt;  &lt;fct&gt; 
+##  1 181         1 2006  181      89 MALE  WHITE NO      $2500… $40000 … &lt;NA&gt;    VOTED  VOTED 
+##  2 181         2 2008  3062     89 MALE  WHITE NO      $2500… $50000 … &lt;NA&gt;    IAP    VOTED 
+##  3 431         1 2006  431      89 FEMA… WHITE NO      $1500… $15000 … &lt;NA&gt;    VOTED  VOTED 
+##  4 431         2 2008  3137     89 FEMA… WHITE NO      $1500… $15000 … &lt;NA&gt;    IAP    VOTED 
+##  5 431         3 2010  6110     89 FEMA… WHITE NO      $1000… $12500 … &lt;NA&gt;    IAP    VOTED 
+##  6 771         1 2006  771      89 FEMA… OTHER NO      &lt;NA&gt;   &lt;NA&gt;     &lt;NA&gt;    DID N… DID N…
+##  7 771         2 2008  3257     89 FEMA… WHITE NO      &lt;NA&gt;   &lt;NA&gt;     &lt;NA&gt;    IAP    DID N…
+##  8 1101        2 2008  3356     89 FEMA… WHITE NO      $2500… $150000… &lt;NA&gt;    IAP    VOTED 
+##  9 1101        3 2010  6289     89 FEMA… WHITE NO      &lt;NA&gt;   &lt;NA&gt;     &lt;NA&gt;    IAP    VOTED 
+## 10 1292        3 2010  6342     89 MALE  WHITE NO      $2500… $50000 … &lt;NA&gt;    IAP    VOTED 
+## # … with 4,751 more rows, and 2 more variables: vote08 &lt;dbl&gt;, earthsun &lt;fct&gt;
+```
+
+
+---
+
+# Making summaries
+
+#### `group_by()` creates groups from variables
+
+#### `summarize()` aggregates a set of rows
+
+--
+
+Combine `group_by()` + `summarize()` to make group-wise summaries: 
+
+
+```r
+gss %&gt;%
+  group_by(sex, race) %&gt;%
+  summarize(age = mean(age))
+```
+
+```
+## # A tibble: 6 x 3
+## # Groups:   sex [2]
+##   sex    race    age
+##   &lt;fct&gt;  &lt;fct&gt; &lt;dbl&gt;
+## 1 MALE   WHITE  50.0
+## 2 MALE   BLACK  46.3
+## 3 MALE   OTHER  38.9
+## 4 FEMALE WHITE  50.6
+## 5 FEMALE BLACK  46.6
+## 6 FEMALE OTHER  42.4
+```
+
+**Note:** You can also use `group_by()` with `mutate()`. When might that be useful?
+
+---
+
+# Making new variables
+
+Create new variables with the verb `mutate()`: 
+
+
+```r
+new_data &lt;- 
+  data %&gt;%
+  mutate(new_variable = some_function(old_variable))
+```
+
+The key is that the function needs to work on a *vector*. Why? Because columns of data frames are vectors, and mutate transforms a whole column.
+
+For example, `+` works on vectors: 
+
+
+```r
+x &lt;- c(1, 2, 3, 4)
+y &lt;- c(5, 6, 7, 8)
+x + y
+```
+
+```
+## [1]  6  8 10 12
+```
+
+---
+
+# Making new variables
+
+Because `+` works on vectors, we can use `mutate()` to create a new column `z` by adding `x` and `y`: 
+
+
+```r
+d &lt;- tibble(x, y)
+
+d %&gt;%
+  mutate(z = x + y)
+```
+
+```
+## # A tibble: 4 x 3
+##       x     y     z
+##   &lt;dbl&gt; &lt;dbl&gt; &lt;dbl&gt;
+## 1     1     5     6
+## 2     2     6     8
+## 3     3     7    10
+## 4     4     8    12
+```
+
+---
+
+# More on making new variables
+
+#### Change the type of a variable
+
+
+```r
+gss %&gt;% mutate(age = as.numeric(age))
+```
+
+`as.numeric`, `as.character`, `as.factor` (and `as_factor`) ... 
+
+--
+
+#### Test a TRUE/FALSE condition
+
+
+```r
+gss %&gt;% mutate(divorce_bin = ifelse(divorce == "YES", 1, 0))
+
+gss %&gt;% mutate(divorce_lgl = (divorce == "YES"), 
+               divorce_dbl = as.numeric(divorce_lgl))
+```
+
+--
+
+#### Factors with **forcats**
+
+Factors represent categorical data. forcats functions of the form `forcats::fct_*()` manipulate factors. 
+
+--
+
+#### Text data with **stringr**
+
+Characters (also called *strings*) represent text data. stringr functions of the form `stringr::str_*()` manipulate strings.
+
+---
+
+# More on making new variables - factors
+
+#### Factors with **forcats**
+
+Factors represent categorical data. forcats functions of the form `forcats::fct_*()` manipulate factors. Useful functions include
+
+- `fct_relevel`: change the order of the factor levels (categories). In an R model, the *first* level is the reference category
+- `fct_drop`: get rid of levels that don't appear in the data
+- `fct_recode`: manually change factor levels
+- `fct_collapse`: manually combine factor levels
+- `fct_reorder`: reorder levels based on a second variable (good for plotting)
+
+--
+
+
+```r
+gss_divorce &lt;- 
+  gss %&gt;%
+  mutate(divorce = fct_drop(divorce), 
+         divorce = fct_relevel(divorce, "NO", "YES")) 
+
+levels(gss_divorce$divorce)
+```
+
+```
+## [1] "NO"  "YES"
+```
+
+---
+
+# More on making new variables - strings
+
+#### Text data with **stringr**
+
+Characters (also called *strings*) represent text data. stringr functions of the form `stringr::str_*()` manipulate strings. Useful functions include
+
+- `str_c`: combine strings
+- `str_detect`: TRUE/FALSE if a pattern is in the string
+- `str_extract`: pattern detection, but gives you the pattern itself
+- `str_replace`, `str_replace_all`: replace a pattern 
+
+--
+
+**Note:** To get the most out of working with text data, you'll need to learn a bit about ***regular expressions*** ("regex"), a general way for representing text patterns. For instance, with regex you can find:
+
+- the beginning of a piece of text (`"^"`), or the end (`"$"`)
+- any number (`"[0-9]"` or `"\\d"`)
+- any number of numbers (`"[0-9]*"`, or `"[0-9]+"` for at least one)
+
+---
+
+# Other good stuff
+
+*You might need to do these things, you might not. It's good to know they exist.*
+
+--
+
+#### Reshape data with `tidyr::pivot_longer()` and `tidyr::pivot_wider()`
+
+Sometimes it's better to have data in "long" form for visualization and "wide" form for modeling. 
+
+--
+
+#### Join data sets with `dplyr::left_join()`
+
+If you have more than one table, you can join them using identifying variables.
+
+--
+
+#### Apply functions with `purrr::map()`
+
+If you want to use a normal, non-vector function inside mutate, the purrr package can "map" any function to a list or vector of values. 
+
+**Note:** `map()` returns a list, but often you want a vector---use `map_chr()`, `map_dbl()`, `map_lgl()`, ..., to get a vector column of the appropriate type.
+
+---
+
+# An advanced example
+
+If you want a challenge, try to understand how this code works. It fits a separate model to each wave of the gss panel data.
+
+
+```r
+gss_nested &lt;- 
+  gss %&gt;% 
+  group_by(wave) %&gt;% 
+  nest()
+
+gss_nested %&gt;%
+  mutate(fit = map(data, ~lm(age ~ race + sex, data = .)))
+```
+
+```
+## # A tibble: 3 x 3
+## # Groups:   wave [3]
+##    wave            data fit   
+##   &lt;dbl&gt; &lt;list&lt;df[,14]&gt;&gt; &lt;list&gt;
+## 1     1    [1,992 × 14] &lt;lm&gt;  
+## 2     2    [1,514 × 14] &lt;lm&gt;  
+## 3     3    [1,255 × 14] &lt;lm&gt;
+```
+
+---
+
+# Rewriting code in a tidyverse style
+
+
+
+
+```r
+test &lt;- 
+  gss_panel10_long %&gt;% 
+  dplyr::select("earthsun", 
+                names(gss_panel10_long)[grep("sci", names(gss_panel10_long))]) %&gt;%
+  filter(is.na(earthsun) == FALSE)
+
+## Some of these we grabbed, dont't make sense, e.g., vissci
+test &lt;- test[, -which(colnames(test) == "uscitzn")]
+test &lt;- test[, -which(colnames(test) == "vissci")]
+
+sum_sci &lt;- apply(data.frame(test)[, -1], 1, sum, na.rm = TRUE)
+sum(is.na(sum_sci))
+```
+
+--
+
+
+```r
+test &lt;-
+  gss_panel10_long %&gt;%
+  dplyr::select(earthsun, contains("sci")) %&gt;%
+  filter(!is.na(earthsun)) %&gt;%
+  dplyr::select(-uscitzn, -vissci, -earthsun)
+
+# TODO: find a tidier way to sum rows...
+test %&gt;% 
+  mutate(sum_sci = rowSums(., na.rm = TRUE)) %&gt;%
+  summarize(sum_sci = sum(is.na(sum_sci)))
+```
+
+---
+
+class: center, middle, inverse
+
+# Lab exercise
+
+(in `data_wrangling.R`)
+    </textarea>
+<style data-target="print-only">@media screen {.remark-slide-container{display:block;}.remark-slide-scaler{box-shadow:none;}}</style>
+<script src="https://remarkjs.com/downloads/remark-latest.min.js"></script>
+<script>var slideshow = remark.create({
+"highlightStyle": "tomorrow",
+"highlightLines": true,
+"countIncrementalSlides": false
+});
+if (window.HTMLWidgets) slideshow.on('afterShowSlide', function (slide) {
+  window.dispatchEvent(new Event('resize'));
+});
+(function(d) {
+  var s = d.createElement("style"), r = d.querySelector(".remark-slide-scaler");
+  if (!r) return;
+  s.type = "text/css"; s.innerHTML = "@page {size: " + r.style.width + " " + r.style.height +"; }";
+  d.head.appendChild(s);
+})(document);
+
+(function(d) {
+  var el = d.getElementsByClassName("remark-slides-area");
+  if (!el) return;
+  var slide, slides = slideshow.getSlides(), els = el[0].children;
+  for (var i = 1; i < slides.length; i++) {
+    slide = slides[i];
+    if (slide.properties.continued === "true" || slide.properties.count === "false") {
+      els[i - 1].className += ' has-continuation';
+    }
+  }
+  var s = d.createElement("style");
+  s.type = "text/css"; s.innerHTML = "@media print { .has-continuation { display: none; } }";
+  d.head.appendChild(s);
+})(document);
+// delete the temporary CSS (for displaying all slides initially) when the user
+// starts to view slides
+(function() {
+  var deleted = false;
+  slideshow.on('beforeShowSlide', function(slide) {
+    if (deleted) return;
+    var sheets = document.styleSheets, node;
+    for (var i = 0; i < sheets.length; i++) {
+      node = sheets[i].ownerNode;
+      if (node.dataset["target"] !== "print-only") continue;
+      node.parentNode.removeChild(node);
+    }
+    deleted = true;
+  });
+})();
+// adds .remark-code-has-line-highlighted class to <pre> parent elements
+// of code chunks containing highlighted lines with class .remark-code-line-highlighted
+(function(d) {
+  const hlines = d.querySelectorAll('.remark-code-line-highlighted');
+  const preParents = [];
+  const findPreParent = function(line, p = 0) {
+    if (p > 1) return null; // traverse up no further than grandparent
+    const el = line.parentElement;
+    return el.tagName === "PRE" ? el : findPreParent(el, ++p);
+  };
+
+  for (let line of hlines) {
+    let pre = findPreParent(line);
+    if (pre && !preParents.includes(pre)) preParents.push(pre);
+  }
+  preParents.forEach(p => p.classList.add("remark-code-has-line-highlighted"));
+})(document);</script>
+
+<script>
+(function() {
+  var links = document.getElementsByTagName('a');
+  for (var i = 0; i < links.length; i++) {
+    if (/^(https?:)?\/\//.test(links[i].getAttribute('href'))) {
+      links[i].target = '_blank';
+    }
+  }
+})();
+</script>
+
+<script>
+slideshow._releaseMath = function(el) {
+  var i, text, code, codes = el.getElementsByTagName('code');
+  for (i = 0; i < codes.length;) {
+    code = codes[i];
+    if (code.parentNode.tagName !== 'PRE' && code.childElementCount === 0) {
+      text = code.textContent;
+      if (/^\\\((.|\s)+\\\)$/.test(text) || /^\\\[(.|\s)+\\\]$/.test(text) ||
+          /^\$\$(.|\s)+\$\$$/.test(text) ||
+          /^\\begin\{([^}]+)\}(.|\s)+\\end\{[^}]+\}$/.test(text)) {
+        code.outerHTML = code.innerHTML;  // remove <code></code>
+        continue;
+      }
+    }
+    i++;
+  }
+};
+slideshow._releaseMath(document);
+</script>
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+(function () {
+  var script = document.createElement('script');
+  script.type = 'text/javascript';
+  script.src  = 'https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-MML-AM_CHTML';
+  if (location.protocol !== 'file:' && /^https?:/.test(script.src))
+    script.src  = script.src.replace(/^https?:/, '');
+  document.getElementsByTagName('head')[0].appendChild(script);
+})();
+</script>
+  </body>
+</html>

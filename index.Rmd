@@ -1,0 +1,408 @@
+---
+title: "Data Wrangling in R"
+subtitle: "&nbsp;"
+author: "Connor Gilroy"
+date: "`r Sys.Date()`"
+output: 
+  xaringan::moon_reader:
+    css: [default, metropolis, metropolis-fonts, css/presentation-styles.css]
+    lib_dir: libs
+    nature:
+      highlightStyle: tomorrow
+      highlightLines: true
+      countIncrementalSlides: false
+    includes:
+      in_header: twitterwidget.html
+---
+
+```{r include=FALSE}
+knitr::opts_chunk$set(eval = FALSE)
+```
+
+```{r include=FALSE, eval=TRUE}
+library(tidyverse)
+library(gssr)
+data("gss_panel06_long")
+gss <- 
+  gss_panel06_long %>%
+  select(firstid, wave, year, id,
+         age, sex, race, 
+         divorce, 
+         income, income06, rincome, 
+         vote00, vote04, vote08, 
+         earthsun) %>%
+  filter(!is.na(id), !is.na(age)) %>%
+  mutate(age = as.numeric(age)) %>%
+  as_factor()
+  
+```
+
+# Data wrangling
+
+What do we mean by *data wrangling*? (Or "data munging", or even ["data janitoring"](https://www.nytimes.com/2014/08/18/technology/for-big-data-scientists-hurdle-to-insights-is-janitor-work.html)?)
+
+<blockquote class="twitter-tweet tw-align-center"><p lang="en" dir="ltr">Them: Can you just quickly pull this data for me?<br><br>Me: Sure, let me just: <br><br>SELECT * FROM some_ideal_clean_and_pristine.table_that_you_think_exists</p>&mdash; Seth Rosen (@sethrosen) <a href="https://twitter.com/sethrosen/status/1252291581320757249?ref_src=twsrc%5Etfw">April 20, 2020</a></blockquote>
+
+--
+
+Data wrangling is **everything you have to do to a data set to get it ready for analysis**
+
+<center><img width="40%" src="https://d33wubrfki0l68.cloudfront.net/795c039ba2520455d833b4034befc8cf360a70ba/558a5/diagrams/data-science-explore.png"></center>
+
+---
+
+# How to wrangle data in R 
+
+There's more than one way to do it! R has two main **dialects**: 
+
+--
+
+#### #1. **base** R
+
+```{r eval=FALSE}
+head(data.frame(giving)[(giving$`2016_dollars`<0 & !is.na(giving$`2016_dollars`)), 
+                        c("transaction_amt","memo_text")], 100)
+
+```
+
+--
+
+#### #2. the **tidyverse**
+
+```{r eval=FALSE}
+giving %>% 
+  filter(`2016_dollars` < 0, !is.na(`2016_dollars`)) %>% 
+  select(transaction_amt, memo_text) %>%
+  head(100)
+```
+
+Many people mix the two. I'll teach a more pure tidyverse style.
+
+**Note:** the tidyverse evolves over time. Use current packages that are well-established. Steer clear of retired packages (like **plyr**) or ones that are especially new (unless you need something cutting-edge)
+
+---
+
+# Key concepts 
+
+tidyverse-style data transformation has 3 components
+
+1. data (a data frame object)
+2. verbs (functions)
+3. the pipe (`%>%`) 
+
+--
+
+```{r eval=FALSE}
+# this
+some_data %>%
+  do_something()
+
+# is the same as this
+do_something(some_data)
+```
+
+--
+
+Why bother with the pipe? You can combine steps into a *series* of transformations
+
+Remember, if you want to keep something, you also have to give it a name:
+
+```{r eval=FALSE}
+some_new_data <- 
+  some_data %>%
+  do_something() %>%
+  do_something_else()
+```
+
+---
+
+# Simple **dplyr** verbs
+
+#### `select()` - choose columns (variables) by name
+
+```{r}
+gss %>% select(id, sex, race)
+
+# remove columns with -name
+gss %>% select(-year)
+
+# there are select helpers too
+gss %>% select(starts_with("vote"))
+```
+
+--
+
+#### `filter()` - choose rows (observations) by some characteristics
+
+```{r}
+gss %>% filter(age < 50)
+
+# "a equals b" is `a == b`
+gss %>% filter(race == "BLACK")
+
+# `!` means "not"
+gss %>% filter(!is.na(divorce))
+```
+
+--
+
+#### `arrange()` - put data in order by one or more variables
+
+```{r}
+gss %>% arrange(age, race)
+```
+
+---
+
+# Simple **dplyr** verbs
+
+#### `select()` - choose columns (variables) by name
+
+```{r eval=TRUE}
+gss %>% select(id, sex, race)
+```
+
+---
+
+# Simple **dplyr** verbs
+
+#### `filter()` - choose rows (observations) by some characteristics
+
+```{r eval=TRUE}
+gss %>% filter(race == "BLACK")
+```
+
+---
+
+# Simple **dplyr** verbs
+
+#### `arrange()` - put data in order by one or more variables
+
+```{r eval=TRUE}
+gss %>% arrange(desc(age))
+```
+
+
+---
+
+# Making summaries
+
+#### `group_by()` creates groups from variables
+
+#### `summarize()` aggregates a set of rows
+
+--
+
+Combine `group_by()` + `summarize()` to make group-wise summaries: 
+
+```{r eval=TRUE}
+gss %>%
+  group_by(sex, race) %>%
+  summarize(age = mean(age))
+```
+
+**Note:** You can also use `group_by()` with `mutate()`. When might that be useful?
+
+---
+
+# Making new variables
+
+Create new variables with the verb `mutate()`: 
+
+```{r eval=FALSE}
+new_data <- 
+  data %>%
+  mutate(new_variable = some_function(old_variable))
+```
+
+The key is that the function needs to work on a *vector*. Why? Because columns of data frames are vectors, and mutate transforms a whole column.
+
+For example, `+` works on vectors: 
+
+```{r eval=TRUE}
+x <- c(1, 2, 3, 4)
+y <- c(5, 6, 7, 8)
+x + y
+```
+
+---
+
+# Making new variables
+
+Because `+` works on vectors, we can use `mutate()` to create a new column `z` by adding `x` and `y`: 
+
+```{r eval=TRUE}
+d <- tibble(x, y)
+
+d %>%
+  mutate(z = x + y)
+```
+
+---
+
+# More on making new variables
+
+#### Change the type of a variable
+
+```{r}
+gss %>% mutate(age = as.numeric(age))
+```
+
+`as.numeric`, `as.character`, `as.factor` (and `as_factor`) ... 
+
+--
+
+#### Test a TRUE/FALSE condition
+
+```{r}
+gss %>% mutate(divorce_bin = ifelse(divorce == "YES", 1, 0))
+
+gss %>% mutate(divorce_lgl = (divorce == "YES"), 
+               divorce_dbl = as.numeric(divorce_lgl))
+```
+
+--
+
+#### Factors with **forcats**
+
+Factors represent categorical data. forcats functions of the form `forcats::fct_*()` manipulate factors. 
+
+--
+
+#### Text data with **stringr**
+
+Characters (also called *strings*) represent text data. stringr functions of the form `stringr::str_*()` manipulate strings.
+
+---
+
+# More on making new variables - factors
+
+#### Factors with **forcats**
+
+Factors represent categorical data. forcats functions of the form `forcats::fct_*()` manipulate factors. Useful functions include
+
+- `fct_relevel`: change the order of the factor levels (categories). In an R model, the *first* level is the reference category
+- `fct_drop`: get rid of levels that don't appear in the data
+- `fct_recode`: manually change factor levels
+- `fct_collapse`: manually combine factor levels
+- `fct_reorder`: reorder levels based on a second variable (good for plotting)
+
+--
+
+```{r eval=TRUE}
+gss_divorce <- 
+  gss %>%
+  mutate(divorce = fct_drop(divorce), 
+         divorce = fct_relevel(divorce, "NO", "YES")) 
+
+levels(gss_divorce$divorce)
+```
+
+---
+
+# More on making new variables - strings
+
+#### Text data with **stringr**
+
+Characters (also called *strings*) represent text data. stringr functions of the form `stringr::str_*()` manipulate strings. Useful functions include
+
+- `str_c`: combine strings
+- `str_detect`: TRUE/FALSE if a pattern is in the string
+- `str_extract`: pattern detection, but gives you the pattern itself
+- `str_replace`, `str_replace_all`: replace a pattern 
+
+--
+
+**Note:** To get the most out of working with text data, you'll need to learn a bit about ***regular expressions*** ("regex"), a general way for representing text patterns. For instance, with regex you can find:
+
+- the beginning of a piece of text (`"^"`), or the end (`"$"`)
+- any number (`"[0-9]"` or `"\\d"`)
+- any number of numbers (`"[0-9]*"`, or `"[0-9]+"` for at least one)
+
+---
+
+# Other good stuff
+
+*You might need to do these things, you might not. It's good to know they exist.*
+
+--
+
+#### Reshape data with `tidyr::pivot_longer()` and `tidyr::pivot_wider()`
+
+Sometimes it's better to have data in "long" form for visualization and "wide" form for modeling. 
+
+--
+
+#### Join data sets with `dplyr::left_join()`
+
+If you have more than one table, you can join them using identifying variables.
+
+--
+
+#### Apply functions with `purrr::map()`
+
+If you want to use a normal, non-vector function inside mutate, the purrr package can "map" any function to a list or vector of values. 
+
+**Note:** `map()` returns a list, but often you want a vector---use `map_chr()`, `map_dbl()`, `map_lgl()`, ..., to get a vector column of the appropriate type.
+
+---
+
+# An advanced example
+
+If you want a challenge, try to understand how this code works. It fits a separate model to each wave of the gss panel data.
+
+```{r eval=TRUE}
+gss_nested <- 
+  gss %>% 
+  group_by(wave) %>% 
+  nest()
+
+gss_nested %>%
+  mutate(fit = map(data, ~lm(age ~ race + sex, data = .)))
+```
+
+---
+
+# Rewriting code in a tidyverse style
+
+```{r include=FALSE, eval=FALSE}
+data("gss_panel10_long")
+```
+
+```{r eval=FALSE}
+test <- 
+  gss_panel10_long %>% 
+  dplyr::select("earthsun", 
+                names(gss_panel10_long)[grep("sci", names(gss_panel10_long))]) %>%
+  filter(is.na(earthsun) == FALSE)
+
+## Some of these we grabbed, dont't make sense, e.g., vissci
+test <- test[, -which(colnames(test) == "uscitzn")]
+test <- test[, -which(colnames(test) == "vissci")]
+
+sum_sci <- apply(data.frame(test)[, -1], 1, sum, na.rm = TRUE)
+sum(is.na(sum_sci))
+```
+
+--
+
+```{r eval=FALSE}
+test <-
+  gss_panel10_long %>%
+  dplyr::select(earthsun, contains("sci")) %>%
+  filter(!is.na(earthsun)) %>%
+  dplyr::select(-uscitzn, -vissci, -earthsun)
+
+# TODO: find a tidier way to sum rows...
+test %>% 
+  mutate(sum_sci = rowSums(., na.rm = TRUE)) %>%
+  summarize(sum_sci = sum(is.na(sum_sci)))
+```
+
+---
+
+class: center, middle, inverse
+
+# Lab exercise
+
+(in `data_wrangling.R`)

@@ -1,0 +1,25 @@
+.remark-code, .remark-inline-code {
+  font-family: 'Fira Mono', 'Lucida Console', Monaco, monospace;
+}
+
+.remark-inline-code {
+  background: #F5F5F5; 
+}
+
+.inverse .remark-inline-code {
+  background: #23373B; /* darker */
+}
+
+.divide-slide {
+    background: linear-gradient(
+    to right, 
+    #23373B 0%, 
+    #23373B 50%, 
+    #FAFAFA 50%, 
+    #FAFAFA 100%
+  );
+}
+
+.title-slide h1 {
+  font-size: 50px;
+}
